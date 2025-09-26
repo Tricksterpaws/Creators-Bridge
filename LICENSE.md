@@ -1,3 +1,7 @@
+## 📜 License
+
+This work is dedicated to the public domain under the [CC0 1.0 Universal license](https://creativecommons.org/publicdomain/zero/1.0/legalcode).  
+You may copy, modify, distribute, and use this work—even commercially—without asking permission.
 Creative Commons Legal Code
 
 CC0 1.0 Universal
