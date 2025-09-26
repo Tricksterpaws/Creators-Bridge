@@ -3,7 +3,7 @@
 > **A lightweight, user-owned standard for preserving creative identity in generative AI**
 
 **Status**: Draft — Seeking community feedback  
-**Author**: [Your Name], independent digital creator  
+**Author**: Tricky (Ethan), independent digital creator  
 **License**: [CC0 1.0 Universal](LICENSE)
 
 ---
