@@ -1,0 +1,35 @@
+Character Codex Layout: Tricky (Persistent Identity Module)
+This codex is the instruction set for Phase 1 (Architecture Setup) and serves as the Master Trait Codex.
+A. Master Trait Codex Structure (JSON/P-List Hybrid)
+The codex is stored as a list of dictionaries/objects, making it machine-readable for automated retrieval and weighting (Phase 2).
+Key Description Data Structure Example
+p_level Priority Level (1, 2, or 3). Must be used for all traits. "p_level": 1
+trait_type Category of the trait (e.g., Aesthetic, Color, Geometry). "trait_type": "Color"
+description The specific, concise prompt text for the trait. "description": "Spiky blue hair, dark roots, lighter tips"
+weight_mod Internal Use Only. Current numerical weight modifier (default 1.0). Increased upon misfire (Phase 3). "weight_mod": 1.5
+locked_rule If true, this trait must be enforced with hyper-aggressive language. "locked_rule": true
+
+B. Tricky's Initialized Master Trait Codex (P1-P3)
+This is the content that is permanently saved and retrieved for every request.
+
+P1: SACRED IDENTITY (Weight \ge 1.8)
+These traits use the highest weight (weight_mod) and trigger the most aggressive language (locked_rule: true).trait_type description weight_mod locked_rule Enforcement Language
+Species Human biological base. 2.0 true MANDATORY HUMAN ANATOMY. NO ANTHRO.
+Color Left inner ear YELLOW (\mathbf{\#FFD966}). 2.0 true LEFT INNER EAR MUST BE YELLOW.
+Color Right inner ear BLUE (\mathbf{\#3A6BA5}). 2.0 true RIGHT INNER EAR MUST BE BLUE. ASYNCHRONOUS COLOR MANDATORY.
+Mask Muzzle-style mask covers nose/mouth. 1.8 true EYES MUST BE COMPLETELY UNCOVERED by mask.
+Style Bold outlines, smooth cel shading (anime sticker style). 1.8 true STRICTLY BOLD OUTLINES, SMOOTH SHADING.P2: FIXED GEOMETRY & ACCESSORIES (Weight \ge 1.3)
+
+P2: FIXED GEOMETRY & ACCESSORIES (Weight \ge 1.3)
+trait_type description weight_mod locked_rule Enforcement Language
+Style Spiky blue hair, dark roots, lighter tips. 1.5 false Spiky, voluminous hair, NO SMOOTH HAIR.
+Accessory Black fingerless gloves with blue paw-print glyph (\mathbf{\#4FC3A1}). 1.4 false Black fingerless gloves, BLUE paw-print glyphs.
+Accessory Silver nose ring under snout. 1.3 false Silver nose ring, prominently visible.
+
+P3: NEGATIVE CONSTRAINTS (Weight \ge 1.5)
+These traits are prepended with negative keywords to combat misfires.
+| trait_type | description | weight_mod | Enforcement Language |
+| :--- | :--- | :--- |
+| Material | Avoid metallic, plastic, or leather textures on the mask. | 1.5 | (AVOID: metallic, plastic, leather textures on mask) |
+| Species | Avoid full fur overlays, paw pads on skin, or anthro snouts. | 1.8 | (Negative Prompt: full fur body, anthro snout, paw pads on skin) |
+| Color | Avoid dark grey or black dominant mask colors. | 1.5 | (AVOID: dark grey, black dominant mask colors) |
