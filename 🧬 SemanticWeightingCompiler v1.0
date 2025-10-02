@@ -1,34 +1,32 @@
 from collections import defaultdict
+import datetime
+from xml.etree.ElementTree import Element, SubElement, tostring
 
 class SemanticWeightingCompiler:
-    def init(self, traits):
+    def __init__(self, traits, symbolic_matrix=None):
         self.traits = traits
-        self.p0 = [t for t in traits if t['level'] == 'P0']
-        self.p1 = [t for t in traits if t['level'] == 'P1']
-        self.p2 = [t for t in traits if t['level'] == 'P2']
-        self.p3 = [t for t in traits if t['level'] == 'P3']
+        self.symbolic_matrix = symbolic_matrix or []
+        self.levels = defaultdict(list)
+        for t in traits:
+            self.levels[t['level']].append(t)
 
-    def compileprompt(self, userrequest, style='natural'):
+    def compileprompt(self, user_request, style='natural'):
         prompt = ''
-        # P0 Prepend
-        for t in self.p0:
+        for t in self.levels['P0']:
             prompt += f"{t['enforcement']}, "
-        # P1 and P2 with user request and style
         if style == 'model':
             prompt += f"{user_request}, "
-            for t in self.p1 + self.p2:
+            for t in self.levels['P1'] + self.levels['P2']:
                 prompt += f"({t['enforcement']}:{t['weight']}), "
         else:
             prompt += f"{user_request} with "
-            for t in self.p1 + self.p2:
+            for t in self.levels['P1'] + self.levels['P2']:
                 prompt += f"{t['enforcement']} (weight {t['weight']}), "
-        # P3 Negative
         negative = '(Negative Prompt: '
-        for t in self.p3:
+        for t in self.levels['P3']:
             enforcement = t['enforcement'].replace('(AVOID): ', '').replace('(NEGATIVE PROMPT): ', '')
             negative += f"{enforcement}, "
-        negative = negative.rstrip(', ') + ')'
-        prompt += negative
+        prompt += negative.rstrip(', ') + ')'
         return prompt.rstrip(', ')
 
     def validate_prompt(self, prompt):
@@ -40,23 +38,113 @@ class SemanticWeightingCompiler:
                 violations.append(f"Contains forbidden P3 trait: {t['description']}")
         return violations
 
-def grouptraitsby_type(traits):
-    grouped = defaultdict(list)
-    for t in traits:
-        grouped[t['type']].append(t)
-    return grouped
+    def get_trait_dict(self):
+        return {t['description']: t for t in self.traits}
 
-def exportcodex(groupedtraits):
-    codex_md = ''
-    for traittype, traits in groupedtraits.items():
-        codexmd += f"### {traittype}\n"
-        for t in traits:
-            codex_md += f"- {t['level']}: {t['description']} ({t['weight']}) — {t['enforcement']}\n"
-        codex_md += '\n'
-    return codex_md
+    def check_user_friendliness(self, user_feedback=None):
+        for t in self.traits:
+            if (
+                t['level'] == 'P0' and
+                'user-friendly' in t['description'].lower() and
+                'user-friendliness required' in t['enforcement'].lower()
+            ):
+                return True
+        if user_feedback and user_feedback.get('user_friendly') is True:
+            return True
+        return False
 
-def trait_summary(traits):
-    summary = defaultdict(float)
-    for t in traits:
-        summary[t['level']] += t['weight']
-    return dict(summary)
+    def attach_remix_lineage(self, ancestor, forked_by, intent=None):
+        return {
+            "ancestor": ancestor,
+            "forked_by": forked_by,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "intent": intent,
+            "preserved": [t['description'] for t in self.traits if t['level'] in ['P0', 'P1']],
+            "altered": [t['description'] for t in self.traits if t['level'] in ['P2', 'P3']]
+        }
+
+    def generate_validation_scroll(self, report):
+        root = Element('validation-scroll')
+        for key, items in report.items():
+            section = SubElement(root, key)
+            if isinstance(items, list):
+                for item in items:
+                    if isinstance(item, dict):
+                        mismatch = SubElement(section, 'mismatch')
+                        for k, v in item.items():
+                            SubElement(mismatch, k).text = str(v)
+                    else:
+                        SubElement(section, 'item').text = str(item)
+            else:
+                section.text = str(items)
+        return tostring(root, encoding='unicode')
+
+############################
+# Ritual Compliance Tester #
+############################
+
+def test_compliance(input_traits, expected_output, codex):
+    compiler = SemanticWeightingCompiler(input_traits)
+    compiled_prompt = compiler.compileprompt("Character base", style='natural')
+    compiled_traits = compiler.get_trait_dict()
+
+    report = {
+        "mandates_passed": [],
+        "mandates_failed": [],
+        "forbidden_passed": [],
+        "forbidden_failed": [],
+        "archetype_mismatches": [],
+        "enforcement_mismatches": [],
+        "trait_diffs": [],
+        "details": []
+    }
+
+    for mandate in codex.get("core_mandates", []):
+        if mandate in compiled_traits:
+            report["mandates_passed"].append(mandate)
+        else:
+            report["mandates_failed"].append(mandate)
+
+    for forbidden in codex.get("forbidden_traits", []):
+        if forbidden in compiled_traits:
+            report["forbidden_failed"].append(forbidden)
+        else:
+            report["forbidden_passed"].append(forbidden)
+
+    for trait, expected_archetype in expected_output.get("archetypes", {}).items():
+        actual_archetype = compiled_traits.get(trait, {}).get('archetype')
+        if actual_archetype != expected_archetype:
+           append({
+                "trait": trait,
+                "expected": expected_archetype,
+                "actual": actual_archetype
+            })
+
+    for trait, expected_enforcement in expected_output.get("enforcements", {}).items():
+        actual_enforcement = compiled_traits.get(trait, {}).get('enforcement')
+        if actual_enforcement != expected_enforcement:
+            report["enforcement_mismatches"].append({
+                "trait": trait,
+                "expected": expected_enforcement,
+                "actual": actual_enforcement
+            })
+
+    for trait in expected_output.get("traits", {}):
+        before = {t['description']: t for t in input_traits}.get(trait)
+        after = compiled_traits.get(trait)
+        if before != after:
+            report["trait_diffs"].append({
+                "trait": trait,
+                "before": before,
+                "after": after
+            })
+
+    report["details"].append({
+        "timestamp": datetime.datetime.now().isoformat(),
+        "input_traits": input_traits,
+        "compiled_traits": list(compiled_traits.values()),
+        "expected_output": expected_output,
+        "compiled_prompt": compiled_prompt
+    })
+
+    return report
