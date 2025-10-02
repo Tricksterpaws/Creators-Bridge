@@ -1,0 +1,62 @@
+from collections import defaultdict
+
+class SemanticWeightingCompiler:
+    def init(self, traits):
+        self.traits = traits
+        self.p0 = [t for t in traits if t['level'] == 'P0']
+        self.p1 = [t for t in traits if t['level'] == 'P1']
+        self.p2 = [t for t in traits if t['level'] == 'P2']
+        self.p3 = [t for t in traits if t['level'] == 'P3']
+
+    def compileprompt(self, userrequest, style='natural'):
+        prompt = ''
+        # P0 Prepend
+        for t in self.p0:
+            prompt += f"{t['enforcement']}, "
+        # P1 and P2 with user request and style
+        if style == 'model':
+            prompt += f"{user_request}, "
+            for t in self.p1 + self.p2:
+                prompt += f"({t['enforcement']}:{t['weight']}), "
+        else:
+            prompt += f"{user_request} with "
+            for t in self.p1 + self.p2:
+                prompt += f"{t['enforcement']} (weight {t['weight']}), "
+        # P3 Negative
+        negative = '(Negative Prompt: '
+        for t in self.p3:
+            enforcement = t['enforcement'].replace('(AVOID): ', '').replace('(NEGATIVE PROMPT): ', '')
+            negative += f"{enforcement}, "
+        negative = negative.rstrip(', ') + ')'
+        prompt += negative
+        return prompt.rstrip(', ')
+
+    def validate_prompt(self, prompt):
+        violations = []
+        for t in self.traits:
+            if t['level'] == 'P0' and t['enforcement'] not in prompt:
+                violations.append(f"Missing P0 mandate: {t['description']}")
+            if t['level'] == 'P3' and t['description'] in prompt:
+                violations.append(f"Contains forbidden P3 trait: {t['description']}")
+        return violations
+
+def grouptraitsby_type(traits):
+    grouped = defaultdict(list)
+    for t in traits:
+        grouped[t['type']].append(t)
+    return grouped
+
+def exportcodex(groupedtraits):
+    codex_md = ''
+    for traittype, traits in groupedtraits.items():
+        codexmd += f"### {traittype}\n"
+        for t in traits:
+            codex_md += f"- {t['level']}: {t['description']} ({t['weight']}) — {t['enforcement']}\n"
+        codex_md += '\n'
+    return codex_md
+
+def trait_summary(traits):
+    summary = defaultdict(float)
+    for t in traits:
+        summary[t['level']] += t['weight']
+    return dict(summary)
